@@ -1,5 +1,5 @@
-import {Router} from 'express'
-import WebTorrent from 'webtorrent'
+import {Router, Response, Request, NextFunction} from 'express'
+import WebTorrent, { Torrent, TorrentFile } from 'webtorrent'
 
 const router = Router()
 const client = new WebTorrent()
@@ -21,12 +21,12 @@ client.on('torrent', () => {
   console.log(client.progress)
   state = {
     progress: Math.round(client.progress * 100 * 100) / 100,
-    downloadspeed: client.downloadspeed,
+    downloadspeed: client.downloadSpeed,
     ratio: client.ratio
   }
 })
 
-router.get('/add/:magnet', (req, res) => {
+router.get('/add/:magnet', (req: Request, res: Response) => {
 const magnet = req.params.magnet
 
 client.add(magnet, torrent => {
@@ -40,14 +40,36 @@ client.add(magnet, torrent => {
 
 })
 
-router.get('/stats', (req, res) => {
+router.get('/stats', (req: Request, res: Response) => {
   state = {
     progress: Math.round(client.progress * 100 * 100) / 100,
-    downloadspeed: client.downloadspeed,
+    downloadspeed: client.downloadSpeed,
     ratio: client.ratio
   }
   res.status(200).send(state)
 })
 
-export default router
+//stream
+interface StreamRequst extends Request {
+  params: {
+    magnet: string;
+    fileName: string
+  }
+  headers: {
+    range: string
+  }
+}
+router.get(
+  'stream/:magnet/:fileName', 
+  (req: Request, res: Response, next: NextFunction) => {
+    const { magnet, fileName } = req.params
 
+    const torrentFile = client.get(magnet) as Torrent
+    let file = {}
+
+    for(let i = 0; i < torrentFile.files.length; i++) {
+      const currentTorrentPiece = torrentFile.files[i]
+    }
+})
+
+export default router
