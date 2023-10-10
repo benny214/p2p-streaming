@@ -59,17 +59,65 @@ interface StreamRequst extends Request {
     range: string
   }
 }
+
+interface ErrorWithStatus extends Error {
+  status: number;
+}
+
 router.get(
   'stream/:magnet/:fileName', 
   (req: Request, res: Response, next: NextFunction) => {
-    const { magnet, fileName } = req.params
+    const {
+      params: { magnet, fileName },
+      headers: { range }
+    }  = req
+
+    if(!range) {
+      //error 416 Range Not Satisfiable сервер не может обслуживать запрошенные диапазоны
+      const err = new Error('Range is not defined, please make request from HTML5 player') as ErrorWithStatus
+      err.status = 416
+      return next(err)
+    }
 
     const torrentFile = client.get(magnet) as Torrent
-    let file = {}
+    let file = <TorrentFile>{}
 
     for(let i = 0; i < torrentFile.files.length; i++) {
       const currentTorrentPiece = torrentFile.files[i]
+      if (currentTorrentPiece.name === fileName) {
+        file = currentTorrentPiece
+      }
     }
+
+    const fileSize = file.length
+    const [startParsed, endParsed] = range.replace(/bytes=/, '').split('-')
+
+    const start = Number(startParsed)
+    const end = endParsed ? Number(endParsed) : fileSize - 1
+
+    const chunkSize = end - start + 1
+
+    const headers = {
+      'Content-Range': '',
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': 'video/mp4'
+    }
+
+    res.writeHead(206, headers)
+
+    const streamPositions = {
+      start,
+      end
+    }
+
+    const stream = file.createReadStream(streamPositions)
+
+    stream.pipe(res)
+
+    stream.on('error', err => {
+      return next(err)
+    })
 })
 
 export default router
