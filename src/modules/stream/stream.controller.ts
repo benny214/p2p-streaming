@@ -65,7 +65,7 @@ interface ErrorWithStatus extends Error {
 }
 
 router.get(
-  'stream/:magnet/:fileName', 
+  '/:magnet/:fileName', 
   (req: Request, res: Response, next: NextFunction) => {
     const {
       params: { magnet, fileName },
@@ -98,7 +98,7 @@ router.get(
     const chunkSize = end - start + 1
 
     const headers = {
-      'Content-Range': '',
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': chunkSize,
       'Content-Type': 'video/mp4'
